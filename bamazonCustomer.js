@@ -56,7 +56,7 @@ function displayTable() {
 
 //Function to select ID number
 function order() {
-    inquirer.prompt({
+    inquirer.prompt([{
         name: "itemID",
         type: "input",
         message: "Please select product to purchase by ID #",
@@ -67,18 +67,30 @@ function order() {
                 return false;
             }
         }
-    }).then(function (answer1) {
-        var query = "SELECT * FROM products WHERE ?";
-        connection.query(query, { item_id: answer1.itemID }, function (err, res) {
-            var table = new Table({
-                head: ["ID", "Product Name", "Department", "Price", "Stock Quantity"]
-            });
-
-            for (var i = 0; i < res.length; i++) {
-                table.push([res[i].item_id, res[i].product_name, res[i].department_name, res[i].price.toFixed(2), res[i].stock]);
+    }, {
+        name: "quantity",
+        type: "input",
+        message: "How many would you like to purchase?",
+        validate: function (value) {
+            if (!isNaN(value) && value > 0) {
+                return true;
+            } else {
+                console.log("Please enter a value greater than 0");
+                return false;
             }
-            console.log(table.toString());
-            itemQuantity();
+        }
+    }]).then(function (answer) {
+        var quantity = answer.quantity;
+        var itemID = answer.itemID;
+        var query = "SELECT * FROM products WHERE ?";
+        connection.query(query, { item_id: answer.itemID }, function (err, res) {
+            if (res[0].stock - answer.quantity >= 0) {
+                var orderTotal = quantity * res[0].price;
+                console.log(orderTotal);
+            } else {
+                console.log("Insufficient stock available.")
+            }
+
         });
     });
 };
@@ -101,9 +113,17 @@ function itemQuantity() {
         }).then(function (answer) {
             var query = "SELECT stock FROM products WHERE ?";
             connection.query(query, { item_id: answer.quantity }, function (err, res) {
+                var table = new Table({
+                    head: ["ID", "Product Name", "Department", "Price", "Stock Quantity"]
+                });
+    
+                for (var i = 0; i < res.length; i++) {
+                    table.push([res[i].item_id, res[i].product_name, res[i].department_name, res[i].price.toFixed(2), res[i].stock]);
+                }
+                console.log(table.toString());
 
                 //If there is not enough stock available
-                if (res[0].stock < answer.quantity) {
+                if (res[0].stock - answer.quantity >= 0) {
                     console.log("Insufficient quantity to process order.");
                     inquirer.prompt({
                         name: 'proceed',
